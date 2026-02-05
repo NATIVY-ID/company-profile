@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -14,6 +15,8 @@ export interface Product {
   category: string;
   imageUrl: string;
   features: string[];
+  // Fix: added price property to resolve missing property error in cart and checkout components
+  price: number;
 }
 
 export type Service = Product;

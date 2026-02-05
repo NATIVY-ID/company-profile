@@ -49,7 +49,7 @@ const JournalDetail: React.FC<JournalDetailProps> = ({ article, onBack }) => {
              </div>
              
              <div className="mt-16 pt-12 border-t border-[#D6D1C7] flex justify-center">
-                 <span className="text-2xl font-serif italic text-[#2C2A26]">Aura</span>
+                 <span className="text-2xl font-serif italic text-[#2C2A26]">Nativy.id</span>
              </div>
           </div>
        </div>
