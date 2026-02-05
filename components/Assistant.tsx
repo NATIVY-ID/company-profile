@@ -121,13 +121,16 @@ const Assistant: React.FC = () => {
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className="bg-[#3D3430] text-[#E8D8C9] w-14 h-14 flex items-center justify-center rounded-full shadow-2xl hover:scale-105 transition-all duration-500 z-50 border border-[#E8D8C9]/20"
+        aria-label="Chat with us"
       >
         {isOpen ? (
              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-6 h-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
              </svg>
         ) : (
-            <span className="font-serif italic font-bold text-xl">N</span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.303.025-.607.045-.913.059a1.516 1.516 0 00-1.314 1.2c-.114.474-.263.931-.446 1.369-.17.408-.667.514-.984.204a10.021 10.021 0 01-1.396-1.744 1.507 1.507 0 00-1.243-.694H9.01a1.507 1.507 0 00-1.243.694 10.021 10.021 0 01-1.396 1.744c-.317.31-.814.204-.984-.204a10.022 10.022 0 01-.446-1.369 1.516 1.516 0 00-1.314-1.2c-.306-.014-.61-.034-.913-.059C2.58 17.094 1.732 16.13 1.732 14.994v-4.286c0-.969.616-1.813 1.5-2.097M13.309 3.03c1.611.139 3.03 1.058 3.864 2.44a6.742 6.742 0 00-2.825-1.011m-6.309.571a6.742 6.742 0 01-2.825 1.011c.834-1.382 2.253-2.301 3.864-2.44m3.154 3.154a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+            </svg>
         )}
       </button>
     </div>

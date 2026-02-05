@@ -14,8 +14,8 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
   return (
-    <div className="group flex flex-col gap-6 cursor-pointer" onClick={() => onClick(product)}>
-      <div className="relative w-full aspect-[4/5] overflow-hidden bg-[#EBE7DE]">
+    <div className="group flex flex-col gap-4 cursor-pointer" onClick={() => onClick(product)}>
+      <div className="relative w-full aspect-square overflow-hidden bg-[#EBE7DE]">
         <img 
           src={product.imageUrl} 
           alt={product.name} 
@@ -24,16 +24,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
         
         <div className="absolute inset-0 bg-[#2C2A26]/0 group-hover:bg-[#2C2A26]/5 transition-colors duration-500 flex items-center justify-center">
             <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
-                <span className="bg-white/90 backdrop-blur text-[#2C2A26] px-6 py-3 rounded-full text-xs uppercase tracking-widest font-medium">
-                    Explore Solution
+                <span className="bg-white/95 backdrop-blur text-[#2C2A26] px-5 py-2.5 rounded-full text-[10px] uppercase tracking-widest font-bold">
+                    View Case Study
                 </span>
             </div>
         </div>
       </div>
       
       <div className="text-center">
-        <h3 className="text-2xl font-serif font-medium text-[#2C2A26] mb-1 group-hover:opacity-70 transition-opacity">{product.name}</h3>
-        <p className="text-sm font-light text-[#5D5A53] tracking-wide uppercase tracking-[0.1em]">{product.category}</p>
+        <h3 className="text-xl font-serif font-medium text-[#2C2A26] mb-1 group-hover:opacity-70 transition-opacity">{product.name}</h3>
+        <p className="text-[10px] font-bold text-[#3D3430]/40 tracking-[0.2em] uppercase">{product.category}</p>
       </div>
     </div>
   );
