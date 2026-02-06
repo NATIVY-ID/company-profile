@@ -8,6 +8,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
 import { sendMessageToGemini } from '../services/geminiService';
 
+// Fix: Declare AIStudio interface separately to match the expected global type and avoid redeclaration conflicts
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+  interface Window {
+    aistudio?: AIStudio;
+  }
+}
+
 const Assistant: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -15,7 +26,7 @@ const Assistant: React.FC = () => {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isThinking, setIsThinking] = useState(false);
-  const [errorStatus, setErrorStatus] = useState<string | null>(null);
+  const [needsAuth, setNeedsAuth] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,6 +34,29 @@ const Assistant: React.FC = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isOpen, isThinking]);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (window.aistudio) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        if (!hasKey) setNeedsAuth(true);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  const handleConnectKey = async () => {
+    if (window.aistudio) {
+      await window.aistudio.openSelectKey();
+      // Assume success as per guideline
+      setNeedsAuth(false);
+      setMessages(prev => [...prev, { 
+        role: 'model', 
+        text: 'API Key berhasil diperbarui. Silakan kirim pesan Anda kembali.', 
+        timestamp: Date.now() 
+      }]);
+    }
+  };
 
   const handleSend = async () => {
     if (!inputValue.trim() || isThinking) return;
@@ -33,7 +67,7 @@ const Assistant: React.FC = () => {
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
     setIsThinking(true);
-    setErrorStatus(null);
+    setNeedsAuth(false);
 
     try {
       const history = messages.map(m => ({ role: m.role, text: m.text }));
@@ -43,7 +77,23 @@ const Assistant: React.FC = () => {
       setMessages(prev => [...prev, aiMsg]);
     } catch (error: any) {
       console.error("Chat failure:", error);
-      setErrorStatus("Maaf, terjadi kendala teknis. Pastikan API Key valid dan kuota mencukupi.");
+      const errorMsg = error?.message || "";
+      
+      // Fix: Added check for "Requested entity was not found." as per guidelines
+      if (errorMsg.includes("leaked") || errorMsg.includes("403") || errorMsg.includes("AUTH_REQUIRED") || errorMsg.includes("Requested entity was not found.")) {
+        setNeedsAuth(true);
+        setMessages(prev => [...prev, { 
+          role: 'model', 
+          text: 'Maaf, kunci API saat ini tidak valid atau telah diblokir. Silakan klik tombol di bawah untuk menghubungkan kunci API baru.', 
+          timestamp: Date.now() 
+        }]);
+      } else {
+        setMessages(prev => [...prev, { 
+          role: 'model', 
+          text: 'Maaf, terjadi kendala teknis. Silakan coba sesaat lagi.', 
+          timestamp: Date.now() 
+        }]);
+      }
     } finally {
       setIsThinking(false);
     }
@@ -82,6 +132,23 @@ const Assistant: React.FC = () => {
               </div>
             ))}
             
+            {needsAuth && (
+              <div className="flex flex-col items-center gap-4 py-8 animate-fade-in-up">
+                <p className="text-[10px] text-[#3D3430]/60 uppercase tracking-widest text-center">
+                  Otorisasi AI Diperlukan
+                </p>
+                <button 
+                  onClick={handleConnectKey}
+                  className="bg-[#3D3430] text-[#E8D8C9] px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-[#524641] transition-all shadow-xl"
+                >
+                  Hubungkan API Key Baru
+                </button>
+                <p className="text-[9px] text-[#3D3430]/40 italic max-w-[200px] text-center">
+                  Gunakan API Key dari project berbayar untuk akses penuh.
+                </p>
+              </div>
+            )}
+
             {isThinking && (
                <div className="flex justify-start">
                  <div className="bg-white/70 border border-[#3D3430]/5 p-4 flex gap-1.5 items-center shadow-sm">
@@ -91,12 +158,6 @@ const Assistant: React.FC = () => {
                  </div>
                </div>
             )}
-
-            {errorStatus && (
-              <div className="bg-red-50 border border-red-200 p-3 text-[10px] text-red-600 text-center uppercase tracking-widest mx-4 rounded">
-                {errorStatus}
-              </div>
-            )}
           </div>
 
           {/* Input Area */}
@@ -104,16 +165,16 @@ const Assistant: React.FC = () => {
             <div className="flex gap-2">
               <input 
                 type="text" 
-                disabled={isThinking}
+                disabled={isThinking || needsAuth}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Tanya Nativy apa saja..."
+                placeholder={needsAuth ? "Silakan hubungkan API..." : "Tanya Nativy apa saja..."}
                 className="flex-1 bg-white/90 border border-[#3D3430]/10 focus:border-[#3D3430] px-4 py-3 text-sm outline-none transition-all placeholder-[#3D3430]/30 text-[#3D3430] disabled:opacity-50"
               />
               <button 
                 onClick={handleSend}
-                disabled={!inputValue.trim() || isThinking}
+                disabled={!inputValue.trim() || isThinking || needsAuth}
                 className="bg-[#3D3430] text-[#E8D8C9] px-5 hover:bg-[#524641] transition-all disabled:opacity-30 flex items-center justify-center"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
