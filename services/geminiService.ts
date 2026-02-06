@@ -20,7 +20,7 @@ const getSystemInstruction = () => {
   Our Core Mantra: "Build Fast, Scale Smart. Building Digital Experiences."
   
   Our Clients include: ${clientContext}.
-  We have experience with Korlantas Polri (Security/Gov), Universitas Jember (Education), and others.
+  We have experience with Korlantas Polri (Security/Gov), Universitas Jember (Education), and PT. Rolas Nusantara Medika (Healthcare).
   
   Our Services:
   ${serviceContext}
@@ -37,13 +37,32 @@ const getSystemInstruction = () => {
 
 export const sendMessageToGemini = async (history: {role: string, text: string}[], newMessage: string): Promise<string> => {
   try {
-    // Inisialisasi GoogleGenAI dengan API_KEY dari environment variable
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Inisialisasi instance baru untuk memastikan mengambil API_KEY terbaru dari environment.
+    // Pastikan variabel 'API_KEY' sudah di-set di Environment Variables Vercel.
+    const apiKey = process.env.API_KEY;
+
+    if (!apiKey) {
+      console.error("DEBUG: process.env.API_KEY is undefined");
+      throw new Error("API_KEY_MISSING");
+    }
+
+    const ai = new GoogleGenAI({ apiKey: apiKey });
     
-    // Membangun array contents yang berisi riwayat dan pesan baru
+    // ATURAN API GEMINI: 
+    // 1. Pesan pertama dalam array 'contents' HARUS memiliki role 'user'.
+    // 2. Role harus bergantian secara ketat (user -> model -> user -> model...).
+    // Saat ini history kita dimulai dengan pesan 'model' (pesan selamat datang),
+    // jadi kita harus membuangnya agar percakapan dimulai dari 'user' (pertanyaan pertama user).
+    
+    const validHistory = history.filter((msg, index) => {
+      // Abaikan pesan pertama jika itu dari 'model' (pesan sambutan bot)
+      if (index === 0 && msg.role === 'model') return false;
+      return true;
+    });
+
     const contents = [
-      ...history.map(h => ({
-        role: h.role,
+      ...validHistory.map(h => ({
+        role: h.role === 'model' ? 'model' : 'user',
         parts: [{ text: h.text }]
       })),
       {
@@ -52,7 +71,6 @@ export const sendMessageToGemini = async (history: {role: string, text: string}[
       }
     ];
 
-    // Menggunakan ai.models.generateContent yang lebih robust untuk deployment
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: contents,
@@ -63,7 +81,6 @@ export const sendMessageToGemini = async (history: {role: string, text: string}[
       },
     });
 
-    // Mengambil teks langsung dari response
     const responseText = response.text;
     
     if (!responseText) {
@@ -72,9 +89,18 @@ export const sendMessageToGemini = async (history: {role: string, text: string}[
 
     return responseText;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error details:", error);
-    // Memberikan pesan fallback yang informatif jika terjadi error di sisi klien/API
-    return "Maaf, saat ini saya mengalami kendala koneksi dengan pusat data Nativy. Silakan hubungi kami langsung melalui WhatsApp (082386199996) untuk konsultasi segera.";
+    
+    // Penanganan error spesifik berdasarkan tipe error yang sering muncul di Vercel
+    if (error.message === "API_KEY_MISSING") {
+      return "Sistem tidak mendeteksi API_KEY. Pastikan Anda sudah menambahkan 'API_KEY' di Environment Variables Vercel dan melakukan 'Redeploy'.";
+    }
+    
+    if (error?.status === 403 || error?.message?.includes('API key')) {
+      return "Kunci API (API Key) ditolak atau tidak valid. Mohon periksa kembali kunci Anda di Google AI Studio dan update di dashboard Vercel.";
+    }
+
+    return "Maaf, saya mengalami kendala teknis saat menghubungi pusat AI Nativy. Silakan coba lagi beberapa saat lagi atau hubungi kami langsung di WhatsApp: 082386199996.";
   }
 };
