@@ -25,7 +25,8 @@ const getSystemInstruction = () => {
 export const sendMessageToGemini = async (history: {role: string, text: string}[], newMessage: string): Promise<string> => {
   try {
     // Fix: Create instance right before call and use process.env.API_KEY directly as per guidelines.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const ai = new GoogleGenAI({ apiKey: AIzaSyDYXoEyCXnMenpbNXjMw_JtnA5N6BuSsBM });
+    // const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
     
     const validHistory = history.filter((msg, index) => {
       if (index === 0 && msg.role === 'model') return false;
