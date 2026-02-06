@@ -28,15 +28,15 @@ export const sendMessageToGemini = async (
   newMessage: string
 ): Promise<string> => {
   
-  // Sangat disarankan menggunakan process.env.VITE_GEMINI_KEY di masa depan
   const apiKey = "AIzaSyDYXoEyCXnMenpbNXjMw_JtnA5N6BuSsBM"; 
   const genAI = new GoogleGenerativeAI(apiKey);
 
   try {
+    // FIX: Secara eksplisit menggunakan apiVersion 'v1' untuk menghindari 404 Not Found
     const model = genAI.getGenerativeModel({ 
       model: "gemini-1.5-flash",
       systemInstruction: getSystemInstruction(),
-    });
+    }, { apiVersion: "v1" });
 
     // Validasi & Transformasi History
     let formattedHistory = history
@@ -49,17 +49,17 @@ export const sendMessageToGemini = async (
     /**
      * FIX: Aturan Ketat Google Gemini API
      * Pesan pertama dalam history HARUS bertipe 'user'.
-     * Jika pesan pertama adalah 'model', kita hapus sampai menemukan 'user'.
      */
     while (formattedHistory.length > 0 && formattedHistory[0].role === "model") {
       formattedHistory.shift();
     }
 
+    // Pastikan history tidak kosong sebelum startChat
     const chatSession = model.startChat({
       history: formattedHistory,
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 250,
+        maxOutputTokens: 300,
       },
     });
 
@@ -70,17 +70,15 @@ export const sendMessageToGemini = async (
     return text || "Maaf, saya tidak mendapatkan respons dari AI.";
 
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
+    console.error("Gemini API Error Detail:", error);
     
-    // Deteksi error autentikasi
     const msg = error.message || "";
     if (msg.includes("API_KEY_INVALID") || msg.includes("403") || msg.includes("not found")) {
       throw new Error("AUTH_REQUIRED");
     }
     
-    // Deteksi error kuota (Rate Limit)
     if (msg.includes("429")) {
-      return "Sistem sedang sibuk (Rate Limit). Silakan coba lagi dalam 1 menit.";
+      return "Sistem sedang sibuk (Rate Limit). Silakan coba lagi sebentar lagi.";
     }
 
     return "Maaf, sedang ada kendala teknis pada sistem AI kami.";
