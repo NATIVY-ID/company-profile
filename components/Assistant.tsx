@@ -8,16 +8,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
 import { sendMessageToGemini } from '../services/geminiService';
 
-// Fix: Simplified global Window augmentation with inline types to resolve subsequent property declaration errors
-declare global {
-  interface Window {
-    aistudio?: {
-      hasSelectedApiKey: () => Promise<boolean>;
-      openSelectKey: () => Promise<void>;
-    };
-  }
-}
-
 const Assistant: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -25,7 +15,7 @@ const Assistant: React.FC = () => {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isThinking, setIsThinking] = useState(false);
-  const [needsAuth, setNeedsAuth] = useState(false);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,56 +24,16 @@ const Assistant: React.FC = () => {
     }
   }, [messages, isOpen, isThinking]);
 
-  // Check if API key is available or needs selection
-  useEffect(() => {
-    const checkKeyStatus = async () => {
-      // If we are in the AI Studio environment
-      if (window.aistudio) {
-        try {
-          const hasKey = await window.aistudio.hasSelectedApiKey();
-          if (!hasKey) {
-            setNeedsAuth(true);
-          }
-        } catch (e) {
-          console.error("Error checking key status:", e);
-        }
-      } else if (!process.env.API_KEY) {
-        // Fallback for when outside AI Studio and no env var present
-        setNeedsAuth(true);
-      }
-    };
-    checkKeyStatus();
-  }, []);
-
-  const handleConnectAI = async () => {
-    if (window.aistudio) {
-      try {
-        await window.aistudio.openSelectKey();
-        // Guideline: Assume the key selection was successful after triggering openSelectKey
-        setNeedsAuth(false);
-        setMessages(prev => [...prev, { 
-          role: 'model', 
-          text: 'AI berhasil terhubung. Silakan ajukan pertanyaan Anda kembali.', 
-          timestamp: Date.now() 
-        }]);
-      } catch (e) {
-        console.error("Failed to open key selector:", e);
-      }
-    } else {
-      // In a real Vercel/Production deployment outside AI Studio, 
-      // the developer must provide API_KEY in environment variables.
-      alert("Akses ke pemilihan kunci API tidak tersedia. Pastikan variabel lingkungan API_KEY telah diatur di server.");
-    }
-  };
-
   const handleSend = async () => {
     if (!inputValue.trim() || isThinking) return;
 
     const userText = inputValue.trim();
     const userMsg: ChatMessage = { role: 'user', text: userText, timestamp: Date.now() };
+    
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
     setIsThinking(true);
+    setErrorStatus(null);
 
     try {
       const history = messages.map(m => ({ role: m.role, text: m.text }));
@@ -91,32 +41,9 @@ const Assistant: React.FC = () => {
       
       const aiMsg: ChatMessage = { role: 'model', text: responseText, timestamp: Date.now() };
       setMessages(prev => [...prev, aiMsg]);
-      setNeedsAuth(false); // Reset if it was successful
     } catch (error: any) {
-      console.error("Chat error:", error);
-      
-      const errorMsg = error?.message || "";
-      if (
-        errorMsg.includes("API key") || 
-        errorMsg.includes("AUTH_REQUIRED") || 
-        errorMsg.includes("403") || 
-        errorMsg.includes("401") ||
-        errorMsg.includes("not found") ||
-        errorMsg.includes("Requested entity was not found")
-      ) {
-        setNeedsAuth(true);
-        setMessages(prev => [...prev, { 
-          role: 'model', 
-          text: 'Maaf, otorisasi AI diperlukan. Silakan klik tombol di bawah untuk menghubungkan kunci API Anda.', 
-          timestamp: Date.now() 
-        }]);
-      } else {
-        setMessages(prev => [...prev, { 
-          role: 'model', 
-          text: 'Maaf, terjadi kesalahan teknis. Silakan coba sesaat lagi.', 
-          timestamp: Date.now() 
-        }]);
-      }
+      console.error("Chat failure:", error);
+      setErrorStatus("Maaf, terjadi kendala koneksi dengan pusat data AI kami.");
     } finally {
       setIsThinking(false);
     }
@@ -155,26 +82,6 @@ const Assistant: React.FC = () => {
               </div>
             ))}
             
-            {needsAuth && (
-              <div className="flex flex-col items-center gap-4 py-6 px-4 animate-fade-in-up bg-white/30 rounded-lg border border-[#3D3430]/5">
-                <p className="text-[10px] text-[#3D3430]/60 uppercase tracking-widest text-center leading-relaxed">
-                  Koneksi AI Memerlukan Otorisasi
-                </p>
-                <button 
-                  onClick={handleConnectAI}
-                  className="bg-[#3D3430] text-[#E8D8C9] px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-[#524641] transition-all shadow-lg flex items-center gap-2"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
-                  </svg>
-                  Hubungkan AI Consultant
-                </button>
-                <p className="text-[9px] text-[#3D3430]/40 text-center italic">
-                  Klik tombol di atas untuk memilih kunci API yang valid jika environment variable tidak terdeteksi.
-                </p>
-              </div>
-            )}
-
             {isThinking && (
                <div className="flex justify-start">
                  <div className="bg-white/70 border border-[#3D3430]/5 p-4 flex gap-1.5 items-center shadow-sm">
@@ -183,6 +90,12 @@ const Assistant: React.FC = () => {
                    <div className="w-1.5 h-1.5 bg-[#3D3430]/40 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                  </div>
                </div>
+            )}
+
+            {errorStatus && (
+              <div className="bg-red-50 border border-red-200 p-3 text-[10px] text-red-600 text-center uppercase tracking-widest">
+                {errorStatus}
+              </div>
             )}
           </div>
 
@@ -195,7 +108,7 @@ const Assistant: React.FC = () => {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder={needsAuth ? "Otorisasi diperlukan..." : "Tanya Nativy apa saja..."}
+                placeholder="Tanya Nativy apa saja..."
                 className="flex-1 bg-white/90 border border-[#3D3430]/10 focus:border-[#3D3430] px-4 py-3 text-sm outline-none transition-all placeholder-[#3D3430]/30 text-[#3D3430] disabled:opacity-50"
               />
               <button 
