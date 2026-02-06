@@ -43,7 +43,7 @@ const Assistant: React.FC = () => {
       setMessages(prev => [...prev, aiMsg]);
     } catch (error: any) {
       console.error("Chat failure:", error);
-      setErrorStatus("Maaf, terjadi kendala koneksi dengan pusat data AI kami.");
+      setErrorStatus("Maaf, terjadi kendala teknis. Pastikan API Key valid dan kuota mencukupi.");
     } finally {
       setIsThinking(false);
     }
@@ -93,7 +93,7 @@ const Assistant: React.FC = () => {
             )}
 
             {errorStatus && (
-              <div className="bg-red-50 border border-red-200 p-3 text-[10px] text-red-600 text-center uppercase tracking-widest">
+              <div className="bg-red-50 border border-red-200 p-3 text-[10px] text-red-600 text-center uppercase tracking-widest mx-4 rounded">
                 {errorStatus}
               </div>
             )}
