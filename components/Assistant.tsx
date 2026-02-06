@@ -7,6 +7,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
 import { sendMessageToGemini } from '../services/geminiService';
+import { WHATSAPP_LINK, INSTAGRAM_LINK } from '../constants';
 
 // Fix: Declare AIStudio interface separately to match the expected global type and avoid redeclaration conflicts
 declare global {
@@ -48,11 +49,10 @@ const Assistant: React.FC = () => {
   const handleConnectKey = async () => {
     if (window.aistudio) {
       await window.aistudio.openSelectKey();
-      // Assume success as per guideline
       setNeedsAuth(false);
       setMessages(prev => [...prev, { 
         role: 'model', 
-        text: 'API Key berhasil diperbarui. Silakan kirim pesan Anda kembali.', 
+        text: 'API Key diperbarui. Silakan ajukan pertanyaan Anda kembali.', 
         timestamp: Date.now() 
       }]);
     }
@@ -79,18 +79,17 @@ const Assistant: React.FC = () => {
       console.error("Chat failure:", error);
       const errorMsg = error?.message || "";
       
-      // Fix: Added check for "Requested entity was not found." as per guidelines
       if (errorMsg.includes("leaked") || errorMsg.includes("403") || errorMsg.includes("AUTH_REQUIRED") || errorMsg.includes("Requested entity was not found.")) {
         setNeedsAuth(true);
         setMessages(prev => [...prev, { 
           role: 'model', 
-          text: 'Maaf, kunci API saat ini tidak valid atau telah diblokir. Silakan klik tombol di bawah untuk menghubungkan kunci API baru.', 
+          text: 'Mohon maaf, layanan konsultasi AI kami sedang dalam pemeliharaan. Silakan hubungi kami langsung melalui kontak di bawah ini.', 
           timestamp: Date.now() 
         }]);
       } else {
         setMessages(prev => [...prev, { 
           role: 'model', 
-          text: 'Maaf, terjadi kendala teknis. Silakan coba sesaat lagi.', 
+          text: 'Terjadi kendala teknis. Silakan hubungi kami via WhatsApp atau Email untuk respon cepat.', 
           timestamp: Date.now() 
         }]);
       }
@@ -133,19 +132,43 @@ const Assistant: React.FC = () => {
             ))}
             
             {needsAuth && (
-              <div className="flex flex-col items-center gap-4 py-8 animate-fade-in-up">
-                <p className="text-[10px] text-[#3D3430]/60 uppercase tracking-widest text-center">
-                  Otorisasi AI Diperlukan
-                </p>
-                <button 
-                  onClick={handleConnectKey}
-                  className="bg-[#3D3430] text-[#E8D8C9] px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-[#524641] transition-all shadow-xl"
-                >
-                  Hubungkan API Key Baru
-                </button>
-                <p className="text-[9px] text-[#3D3430]/40 italic max-w-[200px] text-center">
-                  Gunakan API Key dari project berbayar untuk akses penuh.
-                </p>
+              <div className="flex flex-col items-center gap-6 py-4 animate-fade-in-up">
+                <div className="w-full h-px bg-[#3D3430]/10"></div>
+                
+                <div className="flex flex-col items-center gap-3">
+                  <p className="text-[10px] text-[#3D3430]/60 uppercase tracking-widest text-center font-bold">
+                    Hubungi Konsultan Kami
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 w-full max-w-[280px]">
+                    <a href="mailto:nativy.id@gmail.com" className="flex items-center gap-3 bg-white/50 p-3 hover:bg-white transition-colors border border-[#3D3430]/5 text-xs text-[#3D3430]">
+                      <span className="text-lg">✉️</span>
+                      <span className="font-medium">nativy.id@gmail.com</span>
+                    </a>
+                    <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white/50 p-3 hover:bg-white transition-colors border border-[#3D3430]/5 text-xs text-[#3D3430]">
+                      <span className="text-lg">💬</span>
+                      <div className="flex flex-col">
+                        <span className="font-medium">0823-8619-9996</span>
+                        <span className="text-[9px] opacity-60">WhatsApp Business</span>
+                      </div>
+                    </a>
+                    <a href={INSTAGRAM_LINK} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white/50 p-3 hover:bg-white transition-colors border border-[#3D3430]/5 text-xs text-[#3D3430]">
+                      <span className="text-lg">📸</span>
+                      <span className="font-medium">@nativy.id</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center gap-3 mt-4">
+                  <p className="text-[9px] text-[#3D3430]/40 uppercase tracking-widest text-center">
+                    Gunakan API Key Anda Sendiri
+                  </p>
+                  <button 
+                    onClick={handleConnectKey}
+                    className="bg-[#3D3430]/10 text-[#3D3430] px-4 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-[#3D3430] hover:text-[#E8D8C9] transition-all border border-[#3D3430]/20"
+                  >
+                    Hubungkan API Studio
+                  </button>
+                </div>
               </div>
             )}
 
@@ -169,7 +192,7 @@ const Assistant: React.FC = () => {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder={needsAuth ? "Silakan hubungkan API..." : "Tanya Nativy apa saja..."}
+                placeholder={needsAuth ? "Pilih kontak di atas..." : "Tanya Nativy apa saja..."}
                 className="flex-1 bg-white/90 border border-[#3D3430]/10 focus:border-[#3D3430] px-4 py-3 text-sm outline-none transition-all placeholder-[#3D3430]/30 text-[#3D3430] disabled:opacity-50"
               />
               <button 
