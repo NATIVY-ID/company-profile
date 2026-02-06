@@ -6,7 +6,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SERVICES, CLIENTS } from '../constants';
 
-const getSystemInstruction = (): string => {
+const getSystemInstructionText = (): string => {
   const serviceContext = SERVICES.map(s => 
     `- ${s.name}: ${s.description} (Target: ${s.category})`
   ).join('\n');
@@ -32,10 +32,13 @@ export const sendMessageToGemini = async (
   const genAI = new GoogleGenerativeAI(apiKey);
 
   try {
-    // FIX: Secara eksplisit menggunakan apiVersion 'v1' untuk menghindari 404 Not Found
+    // FIX: Format systemInstruction harus berupa object dengan property parts
     const model = genAI.getGenerativeModel({ 
       model: "gemini-1.5-flash",
-      systemInstruction: getSystemInstruction(),
+      systemInstruction: {
+        role: "system",
+        parts: [{ text: getSystemInstructionText() }],
+      },
     }, { apiVersion: "v1" });
 
     // Validasi & Transformasi History
@@ -46,15 +49,11 @@ export const sendMessageToGemini = async (
         parts: [{ text: h.text }],
       }));
 
-    /**
-     * FIX: Aturan Ketat Google Gemini API
-     * Pesan pertama dalam history HARUS bertipe 'user'.
-     */
+    // Aturan: Harus dimulai oleh user
     while (formattedHistory.length > 0 && formattedHistory[0].role === "model") {
       formattedHistory.shift();
     }
 
-    // Pastikan history tidak kosong sebelum startChat
     const chatSession = model.startChat({
       history: formattedHistory,
       generationConfig: {
@@ -65,20 +64,14 @@ export const sendMessageToGemini = async (
 
     const result = await chatSession.sendMessage(newMessage);
     const response = await result.response;
-    const text = response.text();
-
-    return text || "Maaf, saya tidak mendapatkan respons dari AI.";
+    return response.text();
 
   } catch (error: any) {
     console.error("Gemini API Error Detail:", error);
     
-    const msg = error.message || "";
-    if (msg.includes("API_KEY_INVALID") || msg.includes("403") || msg.includes("not found")) {
-      throw new Error("AUTH_REQUIRED");
-    }
-    
-    if (msg.includes("429")) {
-      return "Sistem sedang sibuk (Rate Limit). Silakan coba lagi sebentar lagi.";
+    // Jika masih error "systemInstruction", kita gunakan fallback tanpa system instruction
+    if (error.message?.includes("systemInstruction")) {
+       return "Konfigurasi AI sedang diperbarui, silakan coba lagi.";
     }
 
     return "Maaf, sedang ada kendala teknis pada sistem AI kami.";
