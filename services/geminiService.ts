@@ -1,8 +1,8 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-
 
 import { GoogleGenAI } from "@google/genai";
 import { SERVICES, CLIENTS } from '../constants';
@@ -37,26 +37,44 @@ const getSystemInstruction = () => {
 
 export const sendMessageToGemini = async (history: {role: string, text: string}[], newMessage: string): Promise<string> => {
   try {
-    // Correctly initialize GoogleGenAI with API_KEY from process.env as per guidelines
+    // Inisialisasi GoogleGenAI dengan API_KEY dari environment variable
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    const chat = ai.chats.create({
-      model: 'gemini-3-flash-preview',
-      config: {
-        systemInstruction: getSystemInstruction(),
-      },
-      history: history.map(h => ({
+    // Membangun array contents yang berisi riwayat dan pesan baru
+    const contents = [
+      ...history.map(h => ({
         role: h.role,
         parts: [{ text: h.text }]
-      }))
+      })),
+      {
+        role: 'user',
+        parts: [{ text: newMessage }]
+      }
+    ];
+
+    // Menggunakan ai.models.generateContent yang lebih robust untuk deployment
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: contents,
+      config: {
+        systemInstruction: getSystemInstruction(),
+        temperature: 0.7,
+        topP: 0.95,
+      },
     });
 
-    const result = await chat.sendMessage({ message: newMessage });
-    // Use the .text property directly from GenerateContentResponse
-    return result.text || "I'm sorry, I couldn't generate a response.";
+    // Mengambil teks langsung dari response
+    const responseText = response.text;
+    
+    if (!responseText) {
+      throw new Error("Empty response from Gemini");
+    }
+
+    return responseText;
 
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    return "I apologize, but our internal network is undergoing maintenance. How can I help manually?";
+    console.error("Gemini API Error details:", error);
+    // Memberikan pesan fallback yang informatif jika terjadi error di sisi klien/API
+    return "Maaf, saat ini saya mengalami kendala koneksi dengan pusat data Nativy. Silakan hubungi kami langsung melalui WhatsApp (082386199996) untuk konsultasi segera.";
   }
 };
