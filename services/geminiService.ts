@@ -20,7 +20,6 @@ const getSystemInstruction = () => {
   Our Core Mantra: "Build Fast, Scale Smart. Building Digital Experiences."
   
   Our Clients include: ${clientContext}.
-  We have experience with Korlantas Polri (Security/Gov), Universitas Jember (Education), and PT. Rolas Nusantara Medika (Healthcare).
   
   Our Services:
   ${serviceContext}
@@ -30,32 +29,25 @@ const getSystemInstruction = () => {
   - Instagram: @nativy.id
   - WhatsApp: 082386199996
   
-  You should answer questions about our technical capabilities (Next.js, Tailwind, Cloud, Flutter), our design philosophy, and how we handle enterprise projects.
-  Keep answers professional and concise (2-3 sentences). 
+  Keep answers professional and concise (max 3 sentences). 
   If asked about pricing, explain that we provide custom quotes based on project scope.`;
 };
 
 export const sendMessageToGemini = async (history: {role: string, text: string}[], newMessage: string): Promise<string> => {
   try {
-    // Inisialisasi instance baru untuk memastikan mengambil API_KEY terbaru dari environment.
-    // Pastikan variabel 'API_KEY' sudah di-set di Environment Variables Vercel.
+    // Mengambil API_KEY dari environment variable
     const apiKey = process.env.API_KEY;
 
-    if (!apiKey) {
-      console.error("DEBUG: process.env.API_KEY is undefined");
+    // Jika API_KEY tidak ditemukan dalam bundle build
+    if (!apiKey || apiKey === "undefined" || apiKey === "") {
+      console.warn("Gemini API Key tidak ditemukan di process.env.API_KEY");
       throw new Error("API_KEY_MISSING");
     }
 
     const ai = new GoogleGenAI({ apiKey: apiKey });
     
-    // ATURAN API GEMINI: 
-    // 1. Pesan pertama dalam array 'contents' HARUS memiliki role 'user'.
-    // 2. Role harus bergantian secara ketat (user -> model -> user -> model...).
-    // Saat ini history kita dimulai dengan pesan 'model' (pesan selamat datang),
-    // jadi kita harus membuangnya agar percakapan dimulai dari 'user' (pertanyaan pertama user).
-    
+    // API Gemini memerlukan role user di awal
     const validHistory = history.filter((msg, index) => {
-      // Abaikan pesan pertama jika itu dari 'model' (pesan sambutan bot)
       if (index === 0 && msg.role === 'model') return false;
       return true;
     });
@@ -77,30 +69,18 @@ export const sendMessageToGemini = async (history: {role: string, text: string}[
       config: {
         systemInstruction: getSystemInstruction(),
         temperature: 0.7,
-        topP: 0.95,
       },
     });
 
-    const responseText = response.text;
-    
-    if (!responseText) {
-      throw new Error("Empty response from Gemini");
-    }
-
-    return responseText;
+    return response.text || "Maaf, saya tidak bisa memproses permintaan tersebut saat ini.";
 
   } catch (error: any) {
-    console.error("Gemini API Error details:", error);
+    console.error("Gemini Error:", error);
     
-    // Penanganan error spesifik berdasarkan tipe error yang sering muncul di Vercel
     if (error.message === "API_KEY_MISSING") {
-      return "Sistem tidak mendeteksi API_KEY. Pastikan Anda sudah menambahkan 'API_KEY' di Environment Variables Vercel dan melakukan 'Redeploy'.";
+      return "⚠️ API_KEY terdeteksi kosong. \n\nLangkah Perbaikan: \n1. Buka Dashboard Vercel Anda. \n2. Buka tab 'Deployments'. \n3. Klik titik tiga pada deployment terbaru dan pilih 'Redeploy' (lalu centang 'Use existing Build Cache' jika ada, atau biarkan default). \n\nIni diperlukan agar Vercel memasukkan kunci baru ke dalam kode aplikasi Anda.";
     }
     
-    if (error?.status === 403 || error?.message?.includes('API key')) {
-      return "Kunci API (API Key) ditolak atau tidak valid. Mohon periksa kembali kunci Anda di Google AI Studio dan update di dashboard Vercel.";
-    }
-
-    return "Maaf, saya mengalami kendala teknis saat menghubungi pusat AI Nativy. Silakan coba lagi beberapa saat lagi atau hubungi kami langsung di WhatsApp: 082386199996.";
+    return "Maaf, terjadi kendala teknis. Mohon pastikan koneksi internet Anda stabil atau hubungi admin Nativy melalui WhatsApp (082386199996).";
   }
 };
