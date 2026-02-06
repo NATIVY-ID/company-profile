@@ -8,19 +8,16 @@ import { SERVICES, CLIENTS } from '../constants';
 
 const getSystemInstructionText = (): string => {
   const serviceContext = SERVICES.map(s => 
-    `- ${s.name}: ${s.description} (Target: ${s.category})`
+    `- ${s.name}: ${s.description}`
   ).join('\n');
 
-  const clientContext = CLIENTS.map(c => c.name).join(', ');
-
-  return `You are the Digital Consultant for "Nativy.id", a premier Software Solution and Digital Agency. 
-  Our Mantra: "Build Fast, Scale Smart."
-  Clients: ${clientContext}.
-  Services: ${serviceContext}.
-  Contact: Email (nativy.id@gmail.com), IG (@nativy.id), WA (082386199996).
-  Language: Respond in Indonesian.
-  Tone: Professional, visionary, and concise. 
-  Constraint: Keep answers under 3 sentences.`;
+  return `BERTINDAKLAH SEBAGAI: Digital Consultant Nativy.id.
+  MANTRA: "Build Fast, Scale Smart."
+  SERVICES: ${serviceContext}.
+  ATURAN: Jawab dalam Bahasa Indonesia, profesional, maksimal 3 kalimat.
+  
+  ---
+  PERTANYAAN USER: `;
 };
 
 export const sendMessageToGemini = async (
@@ -28,20 +25,16 @@ export const sendMessageToGemini = async (
   newMessage: string
 ): Promise<string> => {
   
+  // Gunakan API Key Anda
   const apiKey = "AIzaSyDYXoEyCXnMenpbNXjMw_JtnA5N6BuSsBM"; 
   const genAI = new GoogleGenerativeAI(apiKey);
 
   try {
-    // FIX: Format systemInstruction harus berupa object dengan property parts
+    // KUNCINYA: Jangan masukkan systemInstruction di sini untuk menghindari Error 400
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
-      systemInstruction: {
-        role: "system",
-        parts: [{ text: getSystemInstructionText() }],
-      },
+      model: "gemini-1.5-flash"
     }, { apiVersion: "v1" });
 
-    // Validasi & Transformasi History
     let formattedHistory = history
       .filter((msg) => msg.text && msg.text.trim() !== "")
       .map((h) => ({
@@ -49,7 +42,7 @@ export const sendMessageToGemini = async (
         parts: [{ text: h.text }],
       }));
 
-    // Aturan: Harus dimulai oleh user
+    // Pastikan history dimulai dari user
     while (formattedHistory.length > 0 && formattedHistory[0].role === "model") {
       formattedHistory.shift();
     }
@@ -62,18 +55,22 @@ export const sendMessageToGemini = async (
       },
     });
 
-    const result = await chatSession.sendMessage(newMessage);
+    // MASUKKAN INSTRUKSI DI SINI:
+    // Kita gabungkan instruksi sistem tepat sebelum pertanyaan user
+    const promptWithContext = `${getSystemInstructionText()} ${newMessage}`;
+
+    const result = await chatSession.sendMessage(promptWithContext);
     const response = await result.response;
     return response.text();
 
   } catch (error: any) {
-    console.error("Gemini API Error Detail:", error);
+    console.error("Gemini API Error:", error);
     
-    // Jika masih error "systemInstruction", kita gunakan fallback tanpa system instruction
-    if (error.message?.includes("systemInstruction")) {
-       return "Konfigurasi AI sedang diperbarui, silakan coba lagi.";
+    // Cek jika errornya karena masalah auth/key
+    if (error.message?.includes("API_KEY")) {
+      throw new Error("AUTH_REQUIRED");
     }
 
-    return "Maaf, sedang ada kendala teknis pada sistem AI kami.";
+    return "Maaf, sistem sedang mengalami kendala teknis. Silakan coba lagi.";
   }
 };
