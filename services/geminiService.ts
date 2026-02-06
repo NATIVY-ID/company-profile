@@ -15,38 +15,18 @@ const getSystemInstruction = () => {
   const clientContext = CLIENTS.map(c => c.name).join(', ');
 
   return `You are the Digital Consultant for "Nativy.id", a premier Software Solution and Digital Agency. 
-  Your tone is professional, visionary, tech-savvy yet accessible, and confident.
-  
-  Our Core Mantra: "Build Fast, Scale Smart. Building Digital Experiences."
-  
-  Our Clients include: ${clientContext}.
-  
-  Our Services:
-  ${serviceContext}
-  
-  If anyone asks how to contact Nativy or get in touch, provide these specific contact details:
-  - Email: nativy.id@gmail.com
-  - Instagram: @nativy.id
-  - WhatsApp: 082386199996
-  
-  Keep answers professional and concise (max 3 sentences). 
-  If asked about pricing, explain that we provide custom quotes based on project scope.`;
+  Our Mantra: "Build Fast, Scale Smart."
+  Clients: ${clientContext}.
+  Services: ${serviceContext}.
+  Contact: Email (nativy.id@gmail.com), IG (@nativy.id), WA (082386199996).
+  Keep answers professional, visionary, and under 3 sentences.`;
 };
 
 export const sendMessageToGemini = async (history: {role: string, text: string}[], newMessage: string): Promise<string> => {
   try {
-    // Mengambil API_KEY dari environment variable
-    const apiKey = process.env.API_KEY;
-
-    // Jika API_KEY tidak ditemukan dalam bundle build
-    if (!apiKey || apiKey === "undefined" || apiKey === "") {
-      console.warn("Gemini API Key tidak ditemukan di process.env.API_KEY");
-      throw new Error("API_KEY_MISSING");
-    }
-
-    const ai = new GoogleGenAI({ apiKey: apiKey });
+    // Fix: Create instance right before call and use process.env.API_KEY directly as per guidelines.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
     
-    // API Gemini memerlukan role user di awal
     const validHistory = history.filter((msg, index) => {
       if (index === 0 && msg.role === 'model') return false;
       return true;
@@ -72,15 +52,21 @@ export const sendMessageToGemini = async (history: {role: string, text: string}[
       },
     });
 
-    return response.text || "Maaf, saya tidak bisa memproses permintaan tersebut saat ini.";
+    // Fix: Directly access the .text property of the response.
+    return response.text || "Maaf, saya tidak mendapatkan respons dari pusat data.";
 
   } catch (error: any) {
-    console.error("Gemini Error:", error);
+    console.error("Gemini API Error:", error);
     
-    if (error.message === "API_KEY_MISSING") {
-      return "⚠️ API_KEY terdeteksi kosong. \n\nLangkah Perbaikan: \n1. Buka Dashboard Vercel Anda. \n2. Buka tab 'Deployments'. \n3. Klik titik tiga pada deployment terbaru dan pilih 'Redeploy' (lalu centang 'Use existing Build Cache' jika ada, atau biarkan default). \n\nIni diperlukan agar Vercel memasukkan kunci baru ke dalam kode aplikasi Anda.";
+    // Fix: Refine error detection logic for auth-related issues to include specific guideline strings.
+    if (
+      error?.message?.includes('API key') || 
+      error?.message?.includes('Requested entity was not found.') || 
+      error?.message?.includes('not found')
+    ) {
+      throw new Error("AUTH_REQUIRED");
     }
     
-    return "Maaf, terjadi kendala teknis. Mohon pastikan koneksi internet Anda stabil atau hubungi admin Nativy melalui WhatsApp (082386199996).";
+    return "Maaf, sedang ada kendala teknis pada sistem AI kami. Silakan coba sesaat lagi.";
   }
 };

@@ -8,13 +8,25 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
 import { sendMessageToGemini } from '../services/geminiService';
 
+// Fix: Use AIStudio interface to match the global definition and avoid duplicate declaration or modifier mismatch errors.
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+  interface Window {
+    aistudio: AIStudio;
+  }
+}
+
 const Assistant: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'model', text: 'Hello! Welcome to Nativy.id. I am your Digital Solutions assistant. How can I help you "Build Fast and Scale Smart" today?', timestamp: Date.now() }
+    { role: 'model', text: 'Hello! I am Nativy Digital Consultant. How can I help you "Build Fast and Scale Smart" today?', timestamp: Date.now() }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [needsAuth, setNeedsAuth] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,6 +34,35 @@ const Assistant: React.FC = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isOpen, isThinking]);
+
+  // Cek apakah API_KEY sudah tersedia saat komponen dimuat
+  useEffect(() => {
+    const checkKey = async () => {
+      // Fix: Rely on the provided hasSelectedApiKey method to determine if authentication is needed.
+      if (window.aistudio) {
+        try {
+          const hasKey = await window.aistudio.hasSelectedApiKey();
+          if (!hasKey) setNeedsAuth(true);
+        } catch (e) {
+          console.error("Error checking key status:", e);
+        }
+      }
+    };
+    checkKey();
+  }, []);
+
+  const handleConnectAI = async () => {
+    if (window.aistudio) {
+      // Fix: Follow guideline to assume key selection was successful after triggering openSelectKey.
+      await window.aistudio.openSelectKey();
+      setNeedsAuth(false);
+      setMessages(prev => [...prev, { 
+        role: 'model', 
+        text: 'AI successfully connected. You can now start the consultation.', 
+        timestamp: Date.now() 
+      }]);
+    }
+  };
 
   const handleSend = async () => {
     if (!inputValue.trim() || isThinking) return;
@@ -38,15 +79,20 @@ const Assistant: React.FC = () => {
       
       const aiMsg: ChatMessage = { role: 'model', text: responseText, timestamp: Date.now() };
       setMessages(prev => [...prev, aiMsg]);
-    } catch (error) {
-      console.error("Chat error:", error);
+    } catch (error: any) {
+      if (error.message === "AUTH_REQUIRED") {
+        setNeedsAuth(true);
+        setMessages(prev => [...prev, { 
+          role: 'model', 
+          text: 'To use the AI Consultant on this domain, please click the button below to authorize the connection.', 
+          timestamp: Date.now() 
+        }]);
+      } else {
+        console.error("Chat error:", error);
+      }
     } finally {
       setIsThinking(false);
     }
-  };
-
-  const clearChat = () => {
-    setMessages([{ role: 'model', text: 'Chat direset. Ada lagi yang bisa saya bantu untuk proyek Anda?', timestamp: Date.now() }]);
   };
 
   return (
@@ -59,18 +105,11 @@ const Assistant: React.FC = () => {
                 <div className="w-2.5 h-2.5 bg-[#3D3430] rounded-full animate-pulse"></div>
                 <span className="font-serif font-bold text-[#3D3430] text-lg">Nativy Consultant</span>
             </div>
-            <div className="flex gap-2">
-              <button onClick={clearChat} title="Reset Chat" className="text-[#3D3430]/40 hover:text-[#3D3430] transition-colors p-1">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                </svg>
-              </button>
-              <button onClick={() => setIsOpen(false)} className="text-[#3D3430]/40 hover:text-[#3D3430] transition-colors p-1">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+            <button onClick={() => setIsOpen(false)} className="text-[#3D3430]/40 hover:text-[#3D3430] transition-colors p-1">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
 
           {/* Chat Area */}
@@ -88,6 +127,21 @@ const Assistant: React.FC = () => {
                 </div>
               </div>
             ))}
+            
+            {needsAuth && (
+              <div className="flex justify-center py-4">
+                <button 
+                  onClick={handleConnectAI}
+                  className="bg-[#3D3430] text-[#E8D8C9] px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-[#524641] transition-all shadow-lg flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
+                  </svg>
+                  Connect AI Consultant
+                </button>
+              </div>
+            )}
+
             {isThinking && (
                <div className="flex justify-start">
                  <div className="bg-white/70 border border-[#3D3430]/5 p-4 flex gap-1.5 items-center shadow-sm">
@@ -104,15 +158,16 @@ const Assistant: React.FC = () => {
             <div className="flex gap-2">
               <input 
                 type="text" 
+                disabled={needsAuth}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Ask Nativy anything..." 
-                className="flex-1 bg-white/90 border border-[#3D3430]/10 focus:border-[#3D3430] px-4 py-3 text-sm outline-none transition-all placeholder-[#3D3430]/30 text-[#3D3430]"
+                placeholder={needsAuth ? "Please connect AI first..." : "Ask Nativy anything..."}
+                className="flex-1 bg-white/90 border border-[#3D3430]/10 focus:border-[#3D3430] px-4 py-3 text-sm outline-none transition-all placeholder-[#3D3430]/30 text-[#3D3430] disabled:opacity-50"
               />
               <button 
                 onClick={handleSend}
-                disabled={!inputValue.trim() || isThinking}
+                disabled={!inputValue.trim() || isThinking || needsAuth}
                 className="bg-[#3D3430] text-[#E8D8C9] px-5 hover:bg-[#524641] transition-all disabled:opacity-30 flex items-center justify-center"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
@@ -127,17 +182,10 @@ const Assistant: React.FC = () => {
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className="bg-[#3D3430] text-[#E8D8C9] w-16 h-16 flex items-center justify-center rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 z-50 border-2 border-[#E8D8C9]/20"
-        aria-label="Toggle Chat Assistant"
       >
-        {isOpen ? (
-             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-             </svg>
-        ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.2} stroke="currentColor" className="w-8 h-8">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
-            </svg>
-        )}
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.2} stroke="currentColor" className="w-8 h-8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+        </svg>
       </button>
     </div>
   );
