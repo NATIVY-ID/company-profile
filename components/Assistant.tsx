@@ -8,21 +8,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
 import { sendMessageToGemini } from '../services/geminiService';
 
-// Fix: Use AIStudio interface to match the global definition and avoid duplicate declaration or modifier mismatch errors.
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
     openSelectKey: () => Promise<void>;
   }
   interface Window {
-    aistudio: AIStudio;
+    // FIX: Make aistudio optional to match potential existing global declarations and resolve the "identical modifiers" error.
+    aistudio?: AIStudio;
   }
 }
 
 const Assistant: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'model', text: 'Hello! I am Nativy Digital Consultant. How can I help you "Build Fast and Scale Smart" today?', timestamp: Date.now() }
+    { role: 'model', text: 'Halo! Saya Konsultan Digital Nativy.id. Ada yang bisa saya bantu untuk "Build Fast and Scale Smart" bisnis Anda hari ini?', timestamp: Date.now() }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isThinking, setIsThinking] = useState(false);
@@ -35,17 +35,12 @@ const Assistant: React.FC = () => {
     }
   }, [messages, isOpen, isThinking]);
 
-  // Cek apakah API_KEY sudah tersedia saat komponen dimuat
+  // Cek ketersediaan kunci saat startup
   useEffect(() => {
     const checkKey = async () => {
-      // Fix: Rely on the provided hasSelectedApiKey method to determine if authentication is needed.
       if (window.aistudio) {
-        try {
-          const hasKey = await window.aistudio.hasSelectedApiKey();
-          if (!hasKey) setNeedsAuth(true);
-        } catch (e) {
-          console.error("Error checking key status:", e);
-        }
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        if (!hasKey) setNeedsAuth(true);
       }
     };
     checkKey();
@@ -53,14 +48,18 @@ const Assistant: React.FC = () => {
 
   const handleConnectAI = async () => {
     if (window.aistudio) {
-      // Fix: Follow guideline to assume key selection was successful after triggering openSelectKey.
-      await window.aistudio.openSelectKey();
-      setNeedsAuth(false);
-      setMessages(prev => [...prev, { 
-        role: 'model', 
-        text: 'AI successfully connected. You can now start the consultation.', 
-        timestamp: Date.now() 
-      }]);
+      try {
+        await window.aistudio.openSelectKey();
+        // Sesuai guideline: Asumsikan pemilihan kunci berhasil setelah memicu dialog
+        setNeedsAuth(false);
+        setMessages(prev => [...prev, { 
+          role: 'model', 
+          text: 'AI berhasil terhubung. Silakan ajukan pertanyaan Anda kembali.', 
+          timestamp: Date.now() 
+        }]);
+      } catch (e) {
+        console.error("Failed to open key selector", e);
+      }
     }
   };
 
@@ -84,7 +83,7 @@ const Assistant: React.FC = () => {
         setNeedsAuth(true);
         setMessages(prev => [...prev, { 
           role: 'model', 
-          text: 'To use the AI Consultant on this domain, please click the button below to authorize the connection.', 
+          text: 'Otorisasi diperlukan untuk menggunakan layanan AI. Silakan klik tombol di bawah untuk menghubungkan API Key Anda.', 
           timestamp: Date.now() 
         }]);
       } else {
@@ -129,7 +128,10 @@ const Assistant: React.FC = () => {
             ))}
             
             {needsAuth && (
-              <div className="flex justify-center py-4">
+              <div className="flex flex-col items-center gap-4 py-4 animate-fade-in-up">
+                <p className="text-[10px] text-[#3D3430]/60 uppercase tracking-widest text-center px-4">
+                  Kunci API tidak terdeteksi secara otomatis di browser Anda.
+                </p>
                 <button 
                   onClick={handleConnectAI}
                   className="bg-[#3D3430] text-[#E8D8C9] px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-[#524641] transition-all shadow-lg flex items-center gap-2"
@@ -137,7 +139,7 @@ const Assistant: React.FC = () => {
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
                   </svg>
-                  Connect AI Consultant
+                  Hubungkan AI Sekarang
                 </button>
               </div>
             )}
@@ -158,11 +160,11 @@ const Assistant: React.FC = () => {
             <div className="flex gap-2">
               <input 
                 type="text" 
-                disabled={needsAuth}
+                disabled={needsAuth || isThinking}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder={needsAuth ? "Please connect AI first..." : "Ask Nativy anything..."}
+                placeholder={needsAuth ? "Hubungkan AI untuk bertanya..." : "Tanya Nativy apa saja..."}
                 className="flex-1 bg-white/90 border border-[#3D3430]/10 focus:border-[#3D3430] px-4 py-3 text-sm outline-none transition-all placeholder-[#3D3430]/30 text-[#3D3430] disabled:opacity-50"
               />
               <button 
